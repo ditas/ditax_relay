@@ -1,0 +1,10 @@
+
+\.idea/
+
+_build/
+
+*.iml
+
+*.lock
+
+rebar3

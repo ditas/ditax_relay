@@ -1,0 +1,21 @@
+%%%-------------------------------------------------------------------
+%%% @author pravosudov
+%%% @copyright (C) 2017, <COMPANY>
+%%% @doc
+%%%
+%%% @end
+%%% Created : 28. Nov 2017 16:30
+%%%-------------------------------------------------------------------
+{ application, ditax_relay, [
+    {description, ""},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        inets
+    ]},
+    {mod, {ditax_relay_app, []}},
+    {env, []}
+]}.
