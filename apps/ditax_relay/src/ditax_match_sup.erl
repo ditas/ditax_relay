@@ -38,7 +38,8 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 start_child(MatchType, Arena, PlayersReqNumber, PlayerName) ->
-    supervisor:start_child(?SERVER, [{MatchType, Arena, PlayersReqNumber, PlayerName}]).
+    PlayerHandlerPid = self(),
+    supervisor:start_child(?SERVER, [{MatchType, Arena, PlayersReqNumber, PlayerName, PlayerHandlerPid}]).
 
 %%%===================================================================
 %%% Supervisor callbacks

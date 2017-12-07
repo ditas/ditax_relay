@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -24,7 +24,12 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {
+    type,
+    arena,
+    players_req_number,
+    players = []
+}).
 
 %%%===================================================================
 %%% API
@@ -36,10 +41,8 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link() ->
-    {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(MatchConfig) ->
+    gen_server:start_link(?MODULE, MatchConfig, []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -59,8 +62,8 @@ start_link() ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([]) ->
-    {ok, #state{}}.
+init({MatchType, Arena, PlayersReqNumber, PlayerName, PlayerHandlerPid}) ->
+    {ok, #state{type = MatchType, arena = Arena, players_req_number = PlayersReqNumber, players = [{PlayerName, PlayerHandlerPid}]}}.
 
 %%--------------------------------------------------------------------
 %% @private

@@ -68,16 +68,21 @@ init({RemoteIp, RemotePort, Data}) ->
     io:format("------------ ~p ~p ~p~n", [RemoteIp, RemotePort, Data]),
 
     %% Предположим, что Data содержит данные в форматах
-    %% от клиента-сервера: {тип_матча, арена, необходимое_кол-во_игроков, имя_игрока}
-    %% от клиента: {тип_матча, имя_игрока}
+    %% от клиента-сервера: <<"{match:тип_матча, arena:арена, req_num:необходимое_кол-во_игроков, name:имя_игрока}">>
+    %% от клиента: <<"{match:тип_матча, name:имя_игрока}">>
 
     self() ! {init, Data},
 
     %% TODO: может это нужно делать в контроллере?
     {ok, {out, Port}} = application:get_env(ditax_relay, outgoing),
+
+    io:format("-------OUT Port ~p~n", [Port]),
+
     {ok, Socket} = gen_udp:open(Port, [binary, {active,true}]),
-    gen_udp:send(Socket, RemoteIp, RemotePort, {ok, {RemoteIp, integer_to_list(RemotePort)}}), %% Здесь будет
-    %% какой-нибудь вразумительный ответ с контрольной суммой
+
+    io:format("-------OUT Socket ~p RemoteIp ~p RemotePort ~p~n", [Socket, RemoteIp, RemotePort]),
+
+    ok = gen_udp:send(Socket, RemoteIp, RemotePort, integer_to_list(RemotePort)), %% Здесь будет какой-нибудь вразумительный ответ с контрольной суммой
 
     {ok, #state{remote_ip = RemoteIp, remote_port = RemotePort}}.
 
@@ -127,20 +132,29 @@ handle_cast(_Request, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_info({init, {MatchType, Arena, PlayersReqNumber, PlayerName}}, State) ->
+handle_info({init, Data}, State) ->
+    Params = parse(Data),
 
-    %% Стартую процесс матча
-    ditax_match_sup:start_child(MatchType, Arena, PlayersReqNumber, PlayerName),
+    io:format("~p~n", [Params]),
 
-    {noreply, State};
-handle_info({init, {MatchType, PlayerName}}, State) ->
+    case lists:member(Params, <<"arena">>) of
+        true ->
+            %% Стартую процесс матча
+            ditax_match_sup:start_child(MatchType, Arena, PlayersReqNumber, PlayerName);
+        false ->
+            %% Получаю список матчей, которые уже запущены
+            Matches = supervisor:which_children(ditax_match_sup),
 
-    %% Получаю список матчей, которые уже запущены
-    Matches = supervisor:which_children(ditax_match_sup),
-    %% TODO: выбираю матч подходящий по типу. Делаю запрос к этому модулю на наличие мест в матче.
+            io:format("--------MATCHES------- ~p~n", [Matches]),
+
+            %% TODO: выбираю матч подходящий по типу. Делаю запрос к этому модулю на наличие мест в матче.
+    end,
 
     {noreply, State};
 handle_info(_Info, State) ->
+
+    io:format("---------- IN ~p~n", [_Info]),
+
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -176,3 +190,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+parse(Str) ->
+    Str1 = re:replace(Str, "\\s+", "", [global,{return, list}]),
+    Str2 = [E || E <- Str1, E =/= ${ andalso E =/= $\ andalso E =/= $" andalso E =/= $}],
+    BinList = binary:split(list_to_binary(Str2), <<",">>, [global]),
+
+    lists:foldl(fun(B, Acc) ->
+        BL = binary:split(B, <<":">>, [global]),
+        [list_to_tuple(BL)|Acc]
+    end, [], BinList).
